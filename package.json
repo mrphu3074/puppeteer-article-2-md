@@ -2,10 +2,10 @@
   "name": "puppeteer-render",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "index.mjs",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index"
+    "start": "node index.mjs"
   },
   "keywords": [],
   "author": "",

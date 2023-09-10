@@ -1,9 +1,12 @@
-const { extractFromHtml } = require("@extractus/article-extractor");
-const puppeteer = require("puppeteer");
-const TurndownService = require("turndown");
-require("dotenv").config();
+import './config.mjs'
+import { extractFromHtml } from "@extractus/article-extractor";
+import puppeteer from "puppeteer";
+import TurndownService from "turndown";
 
-const scrapeLogic = async (req, res) => {
+const turndown = new TurndownService()
+const sleep = (duration) => new Promise(done => setTimeout(done, duration))
+
+export const scrapeLogic = async (req, res) => {
   let browser
   try {
     const url = req.query.url
@@ -21,15 +24,23 @@ const scrapeLogic = async (req, res) => {
 
     });
     const page = await browser.newPage();
-    // Set screen size
     await page.setViewport({ width: 480, height: 960 });
     await page.goto(url, { waitUntil: 'networkidle2' });
-    const turndown = new TurndownService()
-    let html = await page.content()
-    const article = await extractFromHtml(html)
+
+    let article;
+    for (let i = 0; i < 3; i++) {
+      if (!page) continue
+      let html = await page.content()
+      article = await extractFromHtml(html)
+      if (article && article.content) {
+        break
+      }
+      await sleep(500)
+    }
+
     res.send({
-      ...article,
-      md: article.content ? turndown.turndown(article.content) : ""
+      ...(article || {}),
+      md: article ? turndown.turndown(article.content) : ""
     })
   } catch (e) {
     console.error(e);
@@ -38,5 +49,3 @@ const scrapeLogic = async (req, res) => {
     await browser.close();
   }
 };
-
-module.exports = { scrapeLogic };
