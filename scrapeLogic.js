@@ -1,45 +1,36 @@
+const { extractFromHtml } = require("@extractus/article-extractor");
 const puppeteer = require("puppeteer");
+const TurndownService = require("turndown");
 require("dotenv").config();
 
-const scrapeLogic = async (res) => {
-  const browser = await puppeteer.launch({
-    args: [
-      "--disable-setuid-sandbox",
-      "--no-sandbox",
-      "--single-process",
-      "--no-zygote",
-    ],
-    executablePath:
-      process.env.NODE_ENV === "production"
-        ? process.env.PUPPETEER_EXECUTABLE_PATH
-        : puppeteer.executablePath(),
-  });
+const scrapeLogic = async (req, res) => {
+  let browser
   try {
+    const url = req.query.url
+    browser = await puppeteer.launch({
+      args: [
+        "--disable-setuid-sandbox",
+        "--no-sandbox",
+        "--single-process",
+        "--no-zygote",
+      ],
+      executablePath:
+        process.env.NODE_ENV === "production"
+          ? process.env.PUPPETEER_EXECUTABLE_PATH
+          : puppeteer.executablePath(),
+
+    });
     const page = await browser.newPage();
-
-    await page.goto("https://developer.chrome.com/");
-
     // Set screen size
-    await page.setViewport({ width: 1080, height: 1024 });
-
-    // Type into search box
-    await page.type(".search-box__input", "automate beyond recorder");
-
-    // Wait and click on first result
-    const searchResultSelector = ".search-box__link";
-    await page.waitForSelector(searchResultSelector);
-    await page.click(searchResultSelector);
-
-    // Locate the full title with a unique string
-    const textSelector = await page.waitForSelector(
-      "text/Customize and automate"
-    );
-    const fullTitle = await textSelector.evaluate((el) => el.textContent);
-
-    // Print the full title
-    const logStatement = `The title of this blog post is ${fullTitle}`;
-    console.log(logStatement);
-    res.send(logStatement);
+    await page.setViewport({ width: 480, height: 960 });
+    await page.goto(url, { waitUntil: 'networkidle2' });
+    const turndown = new TurndownService()
+    let html = await page.content()
+    const article = await extractFromHtml(html)
+    res.send({
+      ...article,
+      md: article.content ? turndown.turndown(article.content) : ""
+    })
   } catch (e) {
     console.error(e);
     res.send(`Something went wrong while running Puppeteer: ${e}`);
